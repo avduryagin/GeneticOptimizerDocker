@@ -1,7 +1,5 @@
 import numpy as np
 import os
-#import pandas as pd
-#import joblib
 import pickle
 
 class ClRe:
@@ -24,11 +22,9 @@ class ClRe:
             return None
 class Generator:
     def __init__(self, classifier=None, regressor=None, col=None,path=None,modelfolder='models',regmodel='rfreg.sav',clmodel='rfc.sav',colfile='col.npy'):
-        #print('path ',os.path.dirname(os.path.abspath(__file__)))
         if path is None:
             path=os.path.join(os.path.dirname(os.path.abspath(__file__)),modelfolder)
             self.path=path
-            #path=os.path.join(os.getcwd(),modelfolder)
         if regressor is not None:
             self.regressor=regressor
         else:
@@ -59,8 +55,6 @@ class Generator:
         # прогнозирование класссификационной задачи
         prob = self.classifier.predict_proba(x.c)
         pred_mask=np.where(prob[:,1]>0.5)[0]
-        #pred_mask = np.array(np.argmax(prob, axis=1), bool)
-        #if pred_mask[pred_mask == True].shape[0] == 0:
         if pred_mask.shape[0]==0:
             return None, pred_mask,prob
         # для  1 прогнозируется следующая точка y
@@ -113,11 +107,6 @@ class Generator:
                 self.r = np.array(r, dtype=np.float32)
                 return self.proba
 
-            #self.mask = (y.r[:, -1] <= self.top[pred_mask])
-            #pred_mask = pred_mask[self.mask]
-            #index = self.indices[pred_mask]
-            #print('i',i)
-
             if i == 1:
                 if cutofftail:
                     self.mask = np.ones(y.r.shape[0], dtype=bool)
@@ -127,7 +116,6 @@ class Generator:
 
 
                 index = self.indices[pred_mask]
-                #print('pedicted as 0',pred_mask.shape[0]-index.shape[0],'pedicted as 1',index.shape[0])
                 self.p0 = probab[pred_mask]
                 self.dt = probab[pred_mask]
                 self.proba[index]=probab[pred_mask]

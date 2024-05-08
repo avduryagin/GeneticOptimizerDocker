@@ -1,12 +1,13 @@
 import numpy as np
 
+
 def intersection(C, D, shape=3):
-    if shape==3:
+    if shape == 3:
         A = np.array(C)
         X = np.array(D)
     else:
-        A = np.array(C,dtype=float)
-        X = np.array(D,dtype=float)
+        A = np.array(C, dtype=float)
+        X = np.array(D, dtype=float)
     a = A[0]
     b = A[1]
     x = X[0]
@@ -32,32 +33,33 @@ def intersection(C, D, shape=3):
     if mask3:
         # print('returned ',A)
         return A.reshape(-1, shape)
-    return np.array([],dtype=float)
+    return np.array([], dtype=float)
 
-def merge(A=np.array([]),B=np.array([]),shape=2):
 
+def merge(A=np.array([]), B=np.array([]), shape=2):
     if (A[0] < B[1]) & (A[1] == B[0]):
         return np.array([A[0], B[1]])
     if (B[0] < A[1]) & (A[0] == B[1]):
         return np.array([B[0], A[1]])
 
-    isp=intersection(A, B, shape=2)
-    if isp.shape[0]>0:
-        if A[0]<B[0]:
-            return np.array([A[0],B[1]])
+    isp = intersection(A, B, shape=2)
+    if isp.shape[0] > 0:
+        if A[0] < B[0]:
+            return np.array([A[0], B[1]])
         else:
             return np.array([B[0], A[1]])
 
     else:
-        return np.array([A,B])
+        return np.array([A, B])
 
-def residual(C, D,shape=3):
-    if shape==3:
+
+def residual(C, D, shape=3):
+    if shape == 3:
         A = np.array(C)
         X = np.array(D)
     else:
-        A = np.array(C,dtype=float)
-        X = np.array(D,dtype=float)
+        A = np.array(C, dtype=float)
+        X = np.array(D, dtype=float)
     a = A[0]
     b = A[1]
     x = X[0]
@@ -66,160 +68,168 @@ def residual(C, D,shape=3):
     mask2 = (a < y) & (y < b)
     mask3 = ((x <= a) & (a <= y)) & ((x <= b) & (b <= y))
     if mask1 & mask2:
-        #print('m12')
+        # print('m12')
         A[1] = x
         if A.shape[0] == 3:
             B = np.array([y, b, A[2]])
         else:
-            B = np.array([y, b],dtype=float)
-        if (A[1]-A[0]>0)&(B[1]-B[0]>0):
-            #print('both')
+            B = np.array([y, b], dtype=float)
+        if (A[1] - A[0] > 0) & (B[1] - B[0] > 0):
+            # print('both')
             return np.array([A, B])
-        elif (A[1]-A[0]>0):
-            #print('A')
+        elif (A[1] - A[0] > 0):
+            # print('A')
             return np.array([A])
-        elif (B[1]-B[0]>0):
-            #print('B')
+        elif (B[1] - B[0] > 0):
+            # print('B')
             return np.array([B])
         else:
-            #print('empty')
-            return np.array([],dtype=float)
-
-
+            # print('empty')
+            return np.array([], dtype=float)
 
     if mask1:
         A[1] = x
-        #print(A)
-        #print('mask1')
-        if A[1]-A[0]>0:
+        # print(A)
+        # print('mask1')
+        if A[1] - A[0] > 0:
             return A
-        else: return np.array([],dtype=float)
+        else:
+            return np.array([], dtype=float)
     if mask2:
         A[0] = y
-        #print('mask2')
-        if A[1]-A[0]>0:
+        # print('mask2')
+        if A[1] - A[0] > 0:
             return A
-        else: return np.array([],dtype=float)
+        else:
+            return np.array([], dtype=float)
     if mask3:
-        #print('mask3')
-        return np.array([],dtype=float)
+        # print('mask3')
+        return np.array([], dtype=float)
     return A.reshape(-1, shape)
 
 
-
-def get_sets_residual(L, X, f=residual,shape=3):
-    if shape==3:
+def get_sets_residual(L, X, f=residual, shape=3):
+    if shape == 3:
         Y = np.array([], dtype=[('a', float), ('b', float), ('date', np.datetime64)]).reshape(-1, shape)
     else:
         Y = np.array([]).reshape(-1, shape)
 
     for l in L:
-        y = f(l, X,shape=shape)
+        y = f(l, X, shape=shape)
 
         if len(y) > 0:
             Y = np.vstack((Y, y))
     Y = np.vstack((Y, X.reshape(-1, shape)))
     return Y
 
-def get_disjoint_sets(x=np.array([]),shape=2):
-    if x.shape[0]>1:
-        a=x[0]
-        b=x[0:]
-        x_=get_sets_residual(b,a,shape=shape)[:-1]
-        y=get_disjoint_sets(x_,shape=shape)
-        return np.vstack((a,y))
+
+def get_disjoint_sets(x=np.array([]), shape=2):
+    if x.shape[0] > 1:
+        a = x[0]
+        b = x[0:]
+        x_ = get_sets_residual(b, a, shape=shape)[:-1]
+        y = get_disjoint_sets(x_, shape=shape)
+        return np.vstack((a, y))
     else:
         return x
 
+
 class linear_transform:
-    def __init__(self, x=np.array([0,1]),y=np.array([0,1])):
+    def __init__(self, x=np.array([0, 1]), y=np.array([0, 1])):
         self.x1 = x[0]
         self.x2 = x[1]
         self.y1 = y[0]
         self.y2 = y[1]
         self.a2 = (self.y1 - self.y2) / (self.x1 - self.x2)
-        self.a1 = (self.y1+self.y2 - self.a2*(self.x1+self.x2))*0.5
+        self.a1 = (self.y1 + self.y2 - self.a2 * (self.x1 + self.x2)) * 0.5
 
     def value(self, x):
-        y=self.a1 + self.a2 * x
+        y = self.a1 + self.a2 * x
         return y
 
 
-def mean_approach(*args,**kwargs):
-    k=0
-    s=0.
+def mean_approach(*args, **kwargs):
+    k = 0
+    s = 0.
     for a in args:
-        #if ~np.isnan(a):
-        s+=a
-        k+=1
-    if k>0:
-        s=s/k
+        # if ~np.isnan(a):
+        s += a
+        k += 1
+    if k > 0:
+        s = s / k
 
     def value(x=0):
         return s
 
     return value
 
-def cover(x=np.array([]).reshape(-1,2),mode='bw',length=100,size=100,c1=1,c0=0,cr=2, restrict=None):
-    #c1-номер столбца, определяющего направление покрытия
-    #c0 -номер столбца, который покрывается интервалами
-    def split(bounds,x=np.array([]).reshape(-1,2),index=np.array([],dtype=np.int32),size=100,lbound=0,rbound=100,c1=1,c0=0,cr=2):
-        if index.shape[0]==0:
+
+def cover(x=np.array([]).reshape(-1, 2), mode='bw', length=np.inf, size=100, c1=1, c0=0, cr=2, restrict=None):
+    # c1-номер столбца, определяющего направление покрытия
+    # c0 -номер столбца, который покрывается интервалами
+    def split(bounds, x=np.array([]).reshape(-1, 2), index=np.array([], dtype=np.int32), size=100, lbound=0, rbound=100,
+              c1=1, c0=0, cr=2):
+        if index.shape[0] == 0:
             return
-        i=index[0]
-        cx=x[i,c0]
+        i = index[0]
+        cx = x[i, c0]
         y = restrict(i)
-        #print(y)
-        its=intersection(np.array([lbound, rbound]), y, shape=2).reshape(-1)
-        #print(y,np.array([lbound,rbound]),its)
-        a,b=get_interval(teta=size, current_point=cx,lbound=its[0], rbound=its[1], expand=False)
-        lbounds=(lbound,a)
-        rbounds=(b,rbound)
-        lmask=x[index,c0]<a
-        rmask=x[index,c0]>b
-        lindex=index[lmask]
-        rindex=index[rmask]
-        bounds.append((indices[i],a,b))
-        #print(np.array([i,a,b]),cx,llength,rlength)
-        split(bounds,x,lindex,size=size,lbound=lbounds[0],rbound=lbounds[1],c1=c1,c0=c0)
-        split(bounds,x,rindex, size=size, lbound=rbounds[0],rbound=rbounds[1], c1=c1, c0=c0)
-    #mask=x[:,c0]<=length
-    #x=x[mask]
-    def get_bounds(x=np.array([]).reshape(-1,2),index=np.array([],dtype=np.int32),size=100,lbound=0,rbound=100):
-        values=[]
+        # print(y)
+        its = intersection(np.array([lbound, rbound]), y, shape=2).reshape(-1)
+        # print(y,np.array([lbound,rbound]),its)
+        a, b = get_interval(teta=size, current_point=cx, lbound=its[0], rbound=its[1], expand=False)
+        lbounds = (lbound, a)
+        rbounds = (b, rbound)
+        lmask = x[index, c0] < a
+        rmask = x[index, c0] > b
+        lindex = index[lmask]
+        rindex = index[rmask]
+        bounds.append((indices[i], a, b))
+        # print(np.array([i,a,b]),cx,llength,rlength)
+        split(bounds, x, lindex, size=size, lbound=lbounds[0], rbound=lbounds[1], c1=c1, c0=c0)
+        split(bounds, x, rindex, size=size, lbound=rbounds[0], rbound=rbounds[1], c1=c1, c0=c0)
+
+    # mask=x[:,c0]<=length
+    # x=x[mask]
+    def get_bounds(x=np.array([]).reshape(-1, 2), index=np.array([], dtype=np.int32), size=100, lbound=0, rbound=100):
+        values = []
         for i in index:
             try:
                 cx = x[i, c0]
-                #j = int(x[i, cr])
+                # j = int(x[i, cr])
                 y = restrict(i)
                 its = intersection(np.array([lbound, rbound]), y, shape=2).reshape(-1)
                 a, b = get_interval(teta=size, current_point=cx, lbound=its[0], rbound=its[1], expand=False)
-                values.append((i,a,b))
-            except IndexError: continue
-        return np.array(values,dtype=[('i',np.int32),('a',np.float32),('b',np.float32)])
+                values.append((i, a, b))
+            except IndexError:
+                continue
+        return np.array(values, dtype=[('i', np.int32), ('a', np.float32), ('b', np.float32)])
+
     def get(i=0):
         return re
 
     if restrict is None:
-        re=np.array([0,length])
-        restrict=get
+        re = np.array([0, length])
+        restrict = get
 
-    if (mode=='bw')|(mode=='fw'):
-        sa=np.argsort(x[:,c1])
+    if (mode == 'bw') | (mode == 'fw'):
+        sa = np.argsort(x[:, c1])
         indices = np.arange(x.shape[0])
 
-        if mode=='bw':
-            sa=np.flip(sa)
-        bounds=[]
-        split(bounds,x,index=sa,size=size,rbound=length,c1=c1,c0=c0)
-        return np.array(bounds,dtype=[('i',np.int32),('a',np.float32),('b',np.float32)])
-    elif mode=='reverse':
-        index=np.arange(-x.shape[0],0)
+        if mode == 'bw':
+            sa = np.flip(sa)
+        bounds = []
+        split(bounds, x, index=sa, size=size, rbound=length, c1=c1, c0=c0)
+        return np.array(bounds, dtype=[('i', np.int32), ('a', np.float32), ('b', np.float32)])
+    elif mode == 'reverse':
+        index = np.arange(-x.shape[0], 0)
     else:
-        index=np.arange(x.shape[0])
-    return get_bounds(x,index,size=size,rbound=length)
+        index = np.arange(x.shape[0])
+    return get_bounds(x, index, size=size, rbound=length)
 
-def get_interval(teta=100, k=1, current_point=0, lbound=0,rbound=100, expand=True, intervals=np.array([]).reshape(-1, 2)):
+
+def get_interval(teta=100, k=1, current_point=0, lbound=0, rbound=100, expand=True,
+                 intervals=np.array([]).reshape(-1, 2)):
     # if current_point>lenght: return None
     teta = np.abs(teta)
     k = np.abs(k)
@@ -265,13 +275,14 @@ def get_interval(teta=100, k=1, current_point=0, lbound=0,rbound=100, expand=Tru
 
     return a, b
 
-def get_unique_sets(x=np.array([],dtype=np.float32).reshape(-1,2)):
-    mask=np.isnan(x[:,0])
-    x=x[~mask]
-    return np.unique(x,axis=0)
+
+def get_unique_sets(x=np.array([], dtype=np.float32).reshape(-1, 2)):
+    mask = np.isnan(x[:, 0])
+    x = x[~mask]
+    return np.unique(x, axis=0)
 
 
-def masked(x=np.array([]),mask=np.array([],dtype=bool),val=0.):
+def masked(x=np.array([]), mask=np.array([], dtype=bool), val=0.):
     def get(index):
         try:
             if mask[index]:
@@ -280,59 +291,60 @@ def masked(x=np.array([]),mask=np.array([],dtype=bool),val=0.):
                 return x[index]
         except(IndexError):
             return val
+
     return get
 
 
-def gef_filtered(x,y,count=5):
-    w1=[]
-    w2=[]
-    t=0
-    n=x.shape[0]
-    k=0
-    while k+count<n:
-        i0=k
-        t=y[k:k+count].max()
+def gef_filtered(x, y, count=5):
+    w1 = []
+    w2 = []
+    t = 0
+    n = x.shape[0]
+    k = 0
+    while k + count < n:
+        i0 = k
+        t = y[k:k + count].max()
         w1.append(x[i0])
         w2.append(t)
-        k+=1
-    return np.array([w1,w2])
+        k += 1
+    return np.array([w1, w2])
 
-def get_bounds(start=0.,end=np.inf,size=100.,constrains=np.array([])):
+
+def get_bounds(start=0., end=np.inf, size=100., constrains=np.array([])):
     def value(x=0.):
-        a=x-size
-        b=x+size
-        if a<start:
-            a=start
-        if b>end:
-            b=end
+        a = x - size
+        b = x + size
+        if a < start:
+            a = start
+        if b > end:
+            b = end
         if constrains.shape[0] > 0:
-            res=get_residual(np.array([a, b]),constrains,x=x)
-            if res.shape[0]>0:
-                a=res[0]
-                b=res[1]
+            res = get_residual(np.array([a, b]), constrains, x=x)
+            if res.shape[0] > 0:
+                a = res[0]
+                b = res[1]
             else:
-                a=0
-                b=0
+                a = 0
+                b = 0
 
-        return a,b
-
+        return a, b
 
     return value
 
-def get_residual(A=np.array([]),B=np.array([]),x=None):
-    def get(A,x):
+
+def get_residual(A=np.array([]), B=np.array([]), x=None):
+    def get(A, x):
         if x is None:
             return A
         for a in A:
-            if (a[0]<=x)&(a[1]>=x):
+            if (a[0] <= x) & (a[1] >= x):
                 return a
         return np.array([])
+
     for s in B:
-        A=residual(A,s,shape=2).reshape(-1,2)
-        A=get(A,x)
-        if A.shape[0]==0:
+        A = residual(A, s, shape=2).reshape(-1, 2)
+        A = get(A, x)
+        if A.shape[0] == 0:
             return A
 
     return A
-
-

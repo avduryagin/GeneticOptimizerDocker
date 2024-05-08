@@ -47,14 +47,11 @@ class SVRGenerator(Generator):
         emask = y == prev
         y[emask] = top[pred_mask][emask]
         y_hat=y* x.s[pred_mask]
-        #y_hat = self.yscaler.inverse_transform(y.reshape(-1,1)).reshape(-1) * x.s[pred_mask]
         x_hat = x.get_items(mask=pred_mask)
         #r_tilde=x.r[:,0]
         x_hat.r[:, 0]=x_hat.r[:,0]+1
         x_hat.r[:,1]=y
         r_tilde=x_hat.r
-        #print(delta[0],prev[0],y[0],x_hat.r[0])
-        #r_tilde = np.hstack((x_hat.r[:, 1:], y.reshape(-1, 1)))
         x_tilde, t_tilde, shape_tilde = self.get_new(x=x_hat.c, tau=y_hat, t=x_hat.t, shape=x_hat.shape)
         return ClRe(c=x_tilde, r=r_tilde, t=t_tilde, shape=shape_tilde, s=x.s[pred_mask]), pred_mask, prob[:, 1]
 
