@@ -1,18 +1,22 @@
-from app.calclib import engineering as en, generator as gn
+from app.calclib import engineering as en
+from app.calclib.features import SVRfeatures
+from app.calclib.models import TFGenerator
 import pandas as pd
 import numpy as np
 
 from numpy.lib import recfunctions as rfn
 
-def predict(json,*args,get='dict',drift=0.,clmodel='rfc_100_150_2.sav',regmodel="rfreg_100_150_2.sav",colfile='col.npy',epsilon=1/12.,**kwargs):
+def predict(json,*args,get='dict',drift=0.,clmodel='tf_binary_cw19.h5',regmodel='tf_reg.h5',cl_scaler='scaler_tf_binarycw19.sav',reg_scaler='scaler_tf_reg.sav',colfile='col.npy',epsilon=1/12.,**kwargs):
 
     class predictor:
 
         def __init__(self, *args, clmodel='rfc.sav',regmodel = 'rfreg.sav',colfile='col.npy',**kwargs):
             self.data = pd.DataFrame([])
-            self.feat = en.features()
+            self.feat=SVRfeatures()
+            self.gen=TFGenerator(clmodel=clmodel,cl_scaler=cl_scaler,regmodel=regmodel,reg_scaler=reg_scaler)
+            #self.feat = en.features()
             #regmodel = 'rfreg_test.sav', clmodel = 'rfc_test.sav'
-            self.gen = gn.Generator(clmodel=clmodel,regmodel=regmodel, colfile=colfile)
+            #self.gen = gn.Generator(clmodel=clmodel,regmodel=regmodel, colfile=colfile)
             # self.columns=["ID простого участка","Адрес от начала участка","Наработка до отказа","interval","predicted","time_series","probab"]
             self.columns = ['id_simple_sector', 'locate_simple_sector', 'worl_avar_first',
                             'interval', 'predicted', 'time_series', 'probab', 'lbound', 'rbound']
@@ -81,7 +85,7 @@ def predict(json,*args,get='dict',drift=0.,clmodel='rfc_100_150_2.sav',regmodel=
     #data.rename(columns=to_rename,inplace=True)
     model=predictor(clmodel=clmodel,regmodel=regmodel,colfile=colfile)
     if data.shape[0]>0:
-        model.fit(data,mode='bw',ident='ID простого участка',restricts=True,drift=drift,epsilon=epsilon)
+        model.fit(data,mode='bw',ident='ID простого участка',restricts=True,drift=drift,epsilon=epsilon,regnorm=np.array([1],dtype=np.int32))
         model.predict()
         model.fill()
     if get=='dict':
