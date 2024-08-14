@@ -88,10 +88,13 @@ def predict(json,*args,get='dict',drift=0.,clmodel='tf_binary_cw19.h5',regmodel=
         model.fit(data,mode='bw',ident='ID простого участка',restricts=True,drift=drift,epsilon=epsilon,regnorm=np.array([1],dtype=np.int32))
         model.predict()
         model.fill()
+
     if get=='dict':
         return model.diction
-    else:
+    elif get=='df':
         return model.results
+    else:
+        return model
 
 
 
