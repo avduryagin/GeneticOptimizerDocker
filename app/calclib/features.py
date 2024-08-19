@@ -21,6 +21,7 @@ class SVRfeatures(Feat):
                             'ivl0', 'ivl1', 'ivl2', 'ivl3', 'ivl4', 'ivl5', 'nivl0', 'nivl1',
                             'nivl2', 'nivl3', 'nivl4', 'nivl5', 'wmean', 'amean', 'percent', 'tau',
                             'water', 'length']
+        self.size_func = lambda x: 100 if x > 219 else 150
 
     def fit(self,xdata=pd.DataFrame([]),ident='new_id', expand=False, ints=np.array([100],dtype=np.int32),
             date=np.array([3],dtype=np.int32), steps=15, epsilon=1/12.,norm=True,mode='bw',restricts=True,drift=0.,clnorm=np.array([],dtype=np.int32),regnorm=np.array([],dtype=np.int32),**kwargs):
@@ -45,7 +46,7 @@ class SVRfeatures(Feat):
         if len(self.reg_features)==0:
             self.reg_features = [str(x) for x in np.arange(self.steps)]
         #создание точек
-        data=self.get_binary(self.raw,self.columns,date=self.date, ident=self.ident,expand=self.expand,ints=self.ints,steps=self.steps,epsilon=self.epsilon,mode=mode,restricts=restricts,drift=drift)
+        data=self.get_binary(self.raw,self.columns,date=self.date, ident=self.ident,expand=self.expand,ints=self.ints,steps=self.steps,epsilon=self.epsilon,mode=mode,restricts=restricts,drift=drift,size_func=self.size_func)
 
         if len(data)>0:
             self.data=np.vstack(data[0])
@@ -67,15 +68,18 @@ class SVRfeatures(Feat):
 
             self.ClRe = ClRe(c=self.cl, r=self.reg, s=self.s, t=self.time_series, shape=self.shape)
 
-    def get_binary(self,xdata,columns,ident='ID простого участка',sortby='Наработка до отказа', expand=False, ints=np.array([100]), date=np.array([3]), steps=15, epsilon=1/12.,mode='bw',restricts=True,drift=0.):
+    def get_binary(self,xdata,columns,ident='ID простого участка',sortby='Наработка до отказа', expand=False, ints=np.array([100]), date=np.array([3]), steps=15, epsilon=1/12.,mode='bw',restricts=True,drift=0.,size_func=None):
         #mode - тип индексации
         xdata.sort_values(by=sortby, inplace=True)
         aggdata = xdata.groupby(ident)
-        npints = np.array(ints) * 2
         L = []
-
         for i, group in enumerate(aggdata):
             Length = group[1]['L'].iloc[0]
+            D=group[1]['D'].iloc[0]
+            if size_func is not None:
+                size=size_func(D)
+                ints=np.array([size])
+            npints = np.array(ints) * 2
             data = group[1][['Адрес от начала участка','Наработка до отказа']].values
             mask = np.where(npints <= Length)[0]
             k = mask.shape[0]
@@ -129,7 +133,7 @@ class SVRfeatures(Feat):
         transpose=[list(x) for x in zip(*L)]
         return transpose
 
-    def get_identity(self,data, date=1, a=0, b=1, index=-1, interval=100,masked=None):
+    def get_identity(self,data, date=1, a=0, b=1, index=None, interval=100,masked=None):
 
         types = dict(
             names=['new_id', 'index', 'period', 'shape', 'Дата аварии', 'L,м', 'a', 'b', 'target', 'count', 'next',
@@ -137,13 +141,12 @@ class SVRfeatures(Feat):
                    'ads', 'ads05', 'ads1', 'ads2', 'ads3', 'ivl0', 'ivl1', 'ivl2', 'ivl3', 'ivl4', 'ivl5', 'nivl0',
                    'nivl1', 'nivl2', 'nivl3', 'nivl4', 'nivl5', 'wmean', 'amean', 'percent', 'tau', 'interval',
                    'water', 'x', 's','d', 'to_out', 'length', 'top', 'horizon'],
-            formats=['U25', np.int32, np.int8, np.int32, 'datetime64[s]', np.float, np.float, np.float, np.float,
-                     np.float,
-                     np.float, np.float, np.float, np.float, np.float, np.float, np.float, np.float, np.float,
-                     np.float, np.float, np.float,
-                     np.float, np.float, np.float, np.float, np.float, np.float, np.float, np.float, np.float,
-                     np.float, np.float, np.float,np.float, np.float, np.float, np.float, np.float, np.float, np.float, np.float,
-                     np.float])
+            formats=['U25', np.int32, np.int8, np.int32, 'datetime64[s]', np.float64, np.float64, np.float64, np.float64,
+                     np.float64,np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64,
+                     np.float64, np.float64, np.float64,
+                     np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64,
+                     np.float64, np.float64, np.float64,np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64, np.float64,
+                     np.float64])
 
         def get_horizontal_counts(data=np.array([]), interval=100, L=100):
             mask = np.ones(data.shape[0], dtype=bool)
@@ -175,6 +178,9 @@ class SVRfeatures(Feat):
                     data = data[mask]
                     mask = mask[mask]
             return np.array(intervals[1:])
+
+        if index is None:
+            return None
 
         dtype = np.dtype(types)
         identity = np.empty(shape=(1), dtype=dtype)
@@ -216,7 +222,7 @@ class SVRfeatures(Feat):
         if mtau > tau:
             hormask = data[:, 0] <= mtau
 
-        identity['shape'] = hormask[hormask == True].shape[0]
+        identity['shape'] = hormask[hormask].shape[0]
         mask1 = (data[:, 1] >= a) & (data[:, 1] <= b)
         xmask = mask1 & mask
         ads = xmask[xmask == True].shape[0]
@@ -260,7 +266,7 @@ class SVRfeatures(Feat):
             identity['nivl' + str(ii)] = mask4[mask4 == True].shape[0]
         tmask = mask1 & (~mask)
         top = tau + date
-        mask2 = data[:, 0] <= top
+        mask2 = (data[:, 0] <= min(top,out))
         ymask = tmask & mask2
         target = np.nan
         next = np.nan
@@ -270,7 +276,7 @@ class SVRfeatures(Feat):
         identity['delta_next'] = delta
         # dic = {0: 8. / 12., 1: 7. / 12., 2: 5. / 12., 3: 4. / 12., 4: 3. / 12., 5: 3. / 12, 6: 2. / 12.,
         # 7: 2. / 12., }
-        count = ymask[ymask == True].shape[0]
+        count = ymask[ymask].shape[0]
         if count > 0:
             inext = np.argmin(data[tmask, 0])
             # arange = np.arange(tmask.shape[0])

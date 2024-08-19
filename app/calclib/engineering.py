@@ -180,13 +180,13 @@ def get_splited_by_repairs(data, index=np.array([],dtype=np.int32),ID='',delta=3
                     (group[xfield] <= b) & (group[xfield] >= a))
         mask1 = (group[dfield] > rd) & (
                     (group[xfield] <= b) & (group[xfield] >= a))
-        indices = mask1[mask1 == True].index
+        indices = mask1[mask1].index
 
         #data.loc[indexes, 'Дата ввода'] = rd
         data.loc[indices, 'a'] = a
         data.loc[indices, 'b'] = b
         data.loc[indices, 'new_id'] = str(ID) + '_' + str(i + 1)
-        labels=mask[mask == True].index
+        labels=mask[mask].index
         data.loc[labels, outfield] = rd
         data.loc[labels, stfield] = 'Бездействующий'
         repgroup = group[mask]

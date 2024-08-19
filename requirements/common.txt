@@ -12,6 +12,7 @@ Flask==2.1.2
 
 # Flask Packages
 flask-restful==0.3.9
+werkzeug==2.2.3
 
 #prd
 waitress==1.4.4

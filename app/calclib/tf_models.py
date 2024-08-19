@@ -34,7 +34,7 @@ class tf_binary:
 
 class tf_reg:
     def __init__(self, model_file='tf_reg.h5', scaler_file='scaler_tf_reg.sav', model_folder='models',
-                 scaler_folder='scalers'):
+                 scaler_folder='scalers',shrinkage=1.):
         self.path = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_folder)
         self.scaler_path = os.path.join(self.path, scaler_folder)
         self.scaler = pickle.load(open(os.path.join(self.scaler_path, scaler_file), 'rb'))
@@ -43,6 +43,10 @@ class tf_reg:
         self.yindex = np.array([2], dtype=np.int32)
         self.call_counter = 0
         self.input_shape = self.model.inputs[0].shape
+        self.shrinkage = 1.
+        if (shrinkage>=0.3)&(shrinkage<=1.):
+            self.shrinkage=shrinkage
+
 
         # scaler x[:,[0,1]]  indices -x, scaler x[:,2]  indices -y
     def inverse_scale(self,x=np.array([]),index=np.array([0,1],dtype=np.int32)):
@@ -66,11 +70,11 @@ class tf_reg:
         xhat=convert_to_tensor(x_,dtype=np.float32)
         #print(self.model.predict(xhat, verbose=1))
         y_=self.model(xhat).numpy()
-        self.call_counter+=1
+        #self.call_counter+=1
         y=self.inverse_scale(y_,self.yindex)
         mask=y[:,0]<clip_to
         y[mask,0]=clip_to
-        return y.reshape(-1)
+        return y.reshape(-1)*self.shrinkage
 
 
 
