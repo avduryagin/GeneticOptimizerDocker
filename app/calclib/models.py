@@ -74,7 +74,7 @@ class TFGenerator(Generator):
 
     def predict(self,feat=TFFeatures(),stop=10,cutofftail=False):
         self.feat=feat
-        predicted=super().predict(x=self.feat.ClRe,top=self.feat.top,stop=stop,cutofftail=cutofftail)
+        predicted=super().predict(x=self.feat.ClRe,top=self.feat.horizon,stop=stop,cutofftail=cutofftail)
         return predicted
 
 

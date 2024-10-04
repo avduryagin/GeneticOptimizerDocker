@@ -1,7 +1,9 @@
 import numpy as np
 import app.calclib.sets_methods as sm
 from app.calclib.features import SVRfeatures
-
+from numpy.lib import recfunctions as rfn
+import pandas as pd
+from app.calclib.generator import ClRe
 
 class TFFeatures(SVRfeatures):
     def __init__(self):
@@ -267,4 +269,78 @@ class TFFeatures(SVRfeatures):
 
 
 
+class TFsingle(TFFeatures):
+    def __init__(self):
+        super().__init__()
 
+    def fit(self, xdata=pd.DataFrame([]), index=0,lbound=0,rbound=1,expand=False, ints=np.array(100, dtype=np.int32),
+            date=np.array(3, dtype=np.int32),  norm=True, clnorm=np.array([], dtype=np.int32), regnorm=np.array([], dtype=np.int32), groups=None, **kwargs):
+
+        def apply_norm(x=np.array([]), s=np.array([]), xindex=np.array([]), yindex=np.array([])):
+            if yindex.shape[0] > 0:
+                if xindex.shape[0] == 0:
+                    x[:, yindex] = np.divide(x[:, yindex], s.reshape(-1, 1))
+
+                else:
+                    x[xindex, yindex] = np.divide(x[xindex, yindex], s.reshape(-1, 1))
+
+
+        self.expand = expand
+        self.ints = ints
+        self.date = date
+        self.raw = xdata
+        self.lbound=lbound
+        self.rbound=rbound
+        self.index=index
+        if groups is None:
+            self.groups = self.raw.groupby('new_id').groups
+        else:
+            self.groups=groups
+        if len(self.reg_features) == 0:
+            self.reg_features = [str(x) for x in np.arange(self.steps)]
+        # создание точек
+        data = self.get_f(self.raw, self.index,self.lbound,self.rbound, self.columns, date=self.date, expand=self.expand,teta=self.ints)
+        if data is None:
+            print(self.index,self.lbound,self.rbound, self.columns, self.date, self.expand,self.ints)
+
+        if len(data) > 0:
+            self.data = np.vstack(data[0])
+            self.cl = rfn.structured_to_unstructured(self.data[self.cl_features], dtype=np.float32).reshape(-1,
+                                                                                                            len(self.cl_features))
+            self.reg = rfn.structured_to_unstructured(self.data[self.reg_features], dtype=np.float32).reshape(-1,
+                                                                                                              len(self.reg_features))
+            # self.time_series = data[:, 1]
+            self.time_series = np.array(data[1], dtype=object)
+            self.s = self.data['s'].reshape(-1)
+            self.top = self.data['top'].reshape(-1)
+            self.shape = self.data['shape'].reshape(-1)
+            self.horizon = self.data['horizon'].reshape(-1)
+            self.features = self.data.dtype.names
+            if norm:
+                self.top = self.top / self.s
+                self.horizon = self.horizon / self.s
+            apply_norm(self.cl, yindex=clnorm, s=self.s)
+            apply_norm(self.reg, yindex=regnorm, s=self.s)
+            # self.reg = np.divide(self.reg,self.s.reshape(-1,1))
+
+            self.ClRe = ClRe(c=self.cl, r=self.reg, s=self.s, t=self.time_series, shape=self.shape)
+
+    def get_f(self,xdata,index,lbound,rbound,columns,sortby='Наработка до отказа', expand=False, teta=np.array(100,dtype=np.int32), date=np.array(3,dtype=np.int32)):
+        #mode - тип индексации
+        xdata.sort_values(by=sortby, inplace=True)
+        npints = np.array(teta) * 2
+        length = xdata.iloc[0]['L,м']
+        assert lbound<rbound,'Заданы некорректные границы интервала a={0},b={1}'.format(lbound,rbound)
+        bound = sm.intersection((lbound, rbound), (0, length), shape=2).reshape(-1)
+        assert bound.shape[0]>0,"Заданы границы вне пределов простого участка"
+        #li=bound[1]-bound[0]
+        #if li<teta:
+            #return None
+        data=xdata[columns].values
+        j=xdata.index.get_loc(index)
+        L = []
+        tensor, ts = self.get_identity(data, date=date, a=bound[0], b=bound[1], index=j,
+                                       interval=teta)
+        L.append((tensor, ts))
+        transpose=[list(x) for x in zip(*L)]
+        return transpose
