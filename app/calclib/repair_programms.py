@@ -51,15 +51,16 @@ class sbs:
         ahat=a-drift
         bhat=b-drift
         indices=self.grouped[pipe]
-        self.engine.fit(self.data.loc[indices],index=self.current_index,lbound=ahat,rbound=bhat,ints=np.array(size),regnorm=self.regnorm)
-        predicted = self.model.predict(self.engine.ClRe, self.engine.horizon, cutofftail=False)
+        self.engine.fit(self.data.loc[indices],index=self.current_index,lbound=ahat,rbound=bhat,ints=np.array(size),regnorm=self.regnorm,groups=self.grouped)
+        predicted = self.model.predict(self.engine, cutofftail=False)
 
         if expand_result:
-            target=self.engine.data['target'][0]
-            count = self.engine.data['count'][0]
+            target=self.engine.data['target'].reshape(-1)[0]
+            count = self.engine.data['count'].reshape(-1)[0]
             n_predicted = np.where(self.model.p > 0)[0].shape[0]
             decision=self.decision_func(predicted[0])
-            return np.array([decision, a, b,count,target,predicted[0],n_predicted],dtype=np.float32)
+            pred=predicted[0]
+            return np.array([decision, a, b,count,target,pred,n_predicted],dtype=np.float32)
         else:
             return np.array([self.decision_func(predicted[0]),a,b],dtype=np.float32)
 
