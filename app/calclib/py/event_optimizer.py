@@ -366,7 +366,7 @@ class EvenOptimizer(OddOptimizer):
             _val=0
             if xsum<=bound:
                 indices=index
-                _val=xsum
+                _val=-xsum
             else:
                 x = self.data.data.loc[index, "cost"].values * -1
                 y = np.zeros(n, dtype=np.float32)
