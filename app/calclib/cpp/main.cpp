@@ -8,18 +8,18 @@ Individ::Individ(size_t size,float bound,std::random_device& rd)
 	this->bound = std::abs(bound);
 	this->rest_ = 0;
 	this->val_ = 0;
-	this->code_ = new bool[this->size];
-	std::fill_n(this->code_, this->size, false);	
-	this->randint_ = std::uniform_int<size_t>(0, this->size - 1);
+	this->code_ = std::make_unique<bool[]>(this->size);
+	std::fill_n(this->code_.get(), this->size, false);
+	this->randint_ = std::uniform_int_distribution<size_t>(0, this->size - 1);
 	this->random_generator_.seed(rd());
+	
 	
 
 }
 void Individ::pint_to_log(std::string& log,size_t index)
 {
 	std::string row;
-	row = std::to_string(index)+". val:" + std::to_string(this->get_val()) + " rest:" + std::to_string(this->get_rest());
-	row += "protected: " + std::to_string(this->isprotected()) + "inherited: " + std::to_string(this->isinherited());
+	row = std::to_string(index)+". val:" + std::to_string(this->get_val()) + " rest:" + std::to_string(this->get_rest());	
 	if (this->code_ == nullptr) { row += "code : nullptr"; }
 	else{ row += "code :!nullptr"; }
 	log.append(row+"\n");
@@ -42,14 +42,8 @@ Individ* Individ::copy(std::random_device& rd)
 	return c;
 };
 Individ::Individ(){}
-Individ::~Individ()
-{
-	if (!(this->protected_)&&(this->npointer == 0)&&(this->code_!=nullptr)) 
-	{
-		delete[] this->code_;
-		this->code_ = nullptr;
-	}
-}
+Individ::~Individ(){}
+
 void Individ::inherit(const Individ* mparent, const Individ* fparent)
 {
 	size_t index = this->randint();
@@ -88,7 +82,7 @@ void Individ::fit(float* x,size_t xlength,float* y,size_t ylength)
 		++i;
 	}
 	this->shuffle(index);
-	//std::shuffle(index.begin(), index.end(),this->random_generator_);
+
 	i = 0;
 	float s = 0;
 	while(i<this->size)
@@ -137,44 +131,38 @@ void Individ::mutate(size_t ncell)
 		++i;
 	}
 };
-void Individ::increase_npointer() { ++this->npointer; };
-void Individ::decrease_npointer() 
-{	
-	if (this->npointer>0){ --this->npointer; }		
-}
-void Individ::erase_npointer() { this->npointer=0; }
+
 const size_t Individ::randint()
 {
 	return this->randint_(this->random_generator_);
 }
 void Individ::shuffle(std::vector<size_t> & index)
 {
+	
 	std::shuffle(index.begin(), index.end(), this->random_generator_);
 }
-const bool * Individ::code() const
+
+bool Individ::at(size_t i ) const
 {
-	return this->code_;
+	if (i < this->size) 
+	{
+		return this->code_[i];
+	}
+	else {
+	std::string msg;
+	msg.append("index i " +std::to_string(i) + " out of bound array with size " +std::to_string( this->size));
+	throw std::invalid_argument(msg); }
 }
-void  Individ::delete_(bool force=false)
-{
-	if (this->code_ == nullptr) { return; }
-	if (force) { this->set_protection(false); }
-	if (this->isprotected()) { return;}
-	this->set_inheritance(false);
-	this->erase_npointer();
-	delete this;
-};
-const bool Individ::isinherited() const { return this->inherited; };
-void Individ::set_inheritance(const bool x) { this->inherited = x; };
-void Individ::set_protection(const bool x) { this->protected_ = x; };
-const bool Individ::isprotected() const { return this->protected_; };
+
+
 
 Population::Population(size_t npopul_, float bound_, float* x_, float* y_, size_t length_,  float threshold_ = 0.7f, float inh_threshold_ = 0.1f, float epsilon_ = 1e-3f, float tolerance_ = 0.7f, size_t mutate_cell_ = 1, size_t cast_number_ = 3,bool random_mutate_=false)
 {
-	std::random_device rd;
-	this->random_device=&rd;
+	//std::random_device rd;
+	this->random_device=new std::random_device();
 	this->random_ = uniform_(0.f,1.f);
-	this->random_generator_.seed(rd());
+	size_t seed = (*this->random_device)();
+	this->random_generator_.seed(seed);
 
 
 	this->npopul = npopul_;	
@@ -192,7 +180,7 @@ Population::Population(size_t npopul_, float bound_, float* x_, float* y_, size_
 	this->set_mutator(this->mutate_cell, this->random_mutate);
 
 	
-	this->path= "C:\\Users\\avduryagin\\source\\repos\\genetic_optimizer\\log_file.txt";
+	//this->path= "C:\\Users\\avduryagin\\source\\repos\\genetic_optimizer\\log_file.txt";
 	//std::ofstream out;	
 	//out.open(this->path);
 	//this->out = &out;
@@ -235,10 +223,12 @@ void Population::fit()
 
 	while (i<this->npopul)
 	{
-		Individ* individ = new Individ(this->length, this->bound, *this->random_device);	
-		
+		//Individ* individ = new Individ(this->length, this->bound, *this->random_device);	
+		individ_ptr pointer = std::make_shared<Individ>(this->length, this->bound, *this->random_device);
+		Individ* individ = pointer.get();
 		individ->fit(this->x, this->length, this->y, this->length);
 		val = individ->value(this->x, this->length, this->y, this->length);
+		//individ->pint_to_log(this->log, i);
 		if (val<this->minval)
 		{
 			this->minval = val;
@@ -246,53 +236,49 @@ void Population::fit()
 		}
 		if (val > this->maxval) { this->maxval = val; }
 		
-		this->add_individ(i, individ,&this->population_);
+		this->add_individ(i, pointer,&this->population_);
 		//Individ current = *this->population_[i];
 		++i;
 	}
 	this->log.append(std::to_string(this->minval) + ",");
 	this->optimal_individ = this->population_[this->individ_index];
-	this->optimal_individ->set_protection(true);
+	
 	//(*this->out) << this->log;
 }
-void Population::add_individ(size_t index,Individ* individ_,dictionary_* population) 
-{
-	individ_->increase_npointer();
+void Population::add_individ(size_t index,individ_ptr individ_,dictionary_* population) {
+	
 	(*population)[index] = individ_;
 };
-void Population::remove_individ(size_t index, Individ* individ_, dictionary_* population)
-{
-	individ_->decrease_npointer();
-};
 
-Individ* Population::cross(Individ* mparent, Individ* fparent) 
+individ_ptr Population::cross(individ_ptr mparent, individ_ptr fparent) 
 {
-	Individ* child =new Individ(this->length, this->bound, *this->random_device);
+	//Individ* child =new Individ(this->length, this->bound, *this->random_device);
+	individ_ptr pointer = std::make_shared<Individ>(this->length, this->bound, *this->random_device);
+	Individ* child = pointer.get();
 	size_t mutate = 0;
-	child->inherit(mparent, fparent);
+	child->inherit(mparent.get(), fparent.get());
 	mutate = this->mutator_->randint();
 	child->mutate(mutate);
 	float val = child->value(this->x, this->length, this->y, this->length);
-	if (std::abs(child->get_rest())>this->bound)
-	{
-		delete child;
+	if (std::abs(child->get_rest())>this->bound)	{
+		
 		return nullptr;
 	}
-	return child;
+	return pointer;
 
 };
 
 void Population::selection(vector_* indices)
 {
-	std::unordered_map<size_t, Individ*>::iterator iter = this->population_.begin();
+	dictionary_iterator iter = this->population_.begin();
 	size_t index = 0;
 	float delta = 0;
 	delta = (this->maxval - this->minval) * this->threshold+this->minval;
-	while(iter!=this->population_.end())
-	{
-		iter->second->set_inheritance(false);
+	while(iter!=this->population_.end())	
+	{		
 		index = iter->first;
-		if (!(iter->second->get_val()>delta))
+		Individ* individ = iter->second.get();
+		if (!(individ->get_val()>delta))
 		{
 			indices->push_back(index);
 		}
@@ -307,13 +293,12 @@ void Population::inherit(dictionary_* new_population, vector_* indices,size_t& n
 	vector_::iterator iter = indices->begin();
 	while (iter!=indices->end())
 	{
-		current = this->population_[*iter];		
+		current = this->population_[*iter].get();		
 		val = current->get_val();
 		if (val < delta)
 		{
-			current->decrease_npointer();
-			current->set_inheritance(true);
-			this->add_individ(start+ninherited_, current, new_population);
+
+			this->add_individ(start+ninherited_, this->population_[*iter], new_population);
 			
 			if (val < minval) { minval = val; optimal_index = ninherited_; }
 			if (val > maxval) { maxval = val; }
@@ -323,17 +308,20 @@ void Population::inherit(dictionary_* new_population, vector_* indices,size_t& n
 	}
 	ninherited = ninherited_;
 };
-const size_t Population::cast(vector_* const indices) const 
+const size_t Population::cast(const vector_&  indices, individ_ptr generator_) const
 {
-	size_t length_ = indices->size();
-	Individ generator = Individ(length_, 0., *this->random_device);
+	size_t length_ = indices.size();
+	Individ* generator = generator_.get();
+	Individ* sample = nullptr;
+	
 	size_t i = 0,j=0,index=0,optimal_index=0;
 	float minval = this->inf,val=0;
 	while(i<this->cast_number)
 	{
-		j = generator.randint();
-		index = indices->at(j);
-		val = this->population_.at(index)->get_val();
+		j = generator->randint();
+		index = indices.at(j);
+		sample = this->population_.at(index).get();
+		val = sample->get_val();
 		if (val<minval)
 		{
 			minval = val;
@@ -346,26 +334,30 @@ const size_t Population::cast(vector_* const indices) const
 
 void Population::get_new_population(dictionary_* new_population, size_t& optimal_index, float& minval, float& maxval, size_t start=0) 
 {
-	vector_ indices; 
-	Individ* fparent=nullptr; Individ* mparent=nullptr;
+	vector_ indices;
+	Individ* current = nullptr;
+	individ_ptr fparent=nullptr; individ_ptr mparent=nullptr;
 	size_t mparent_index = 0, fparent_index = 0,optimal_index_=0;
 	this->selection(&indices);	
 
 	if (indices.size() == 0) {	return;	}	
 
 	float minval_ = this->inf,maxval_=-this->inf,val=0;
-	size_t i=0, k=0,index=0;	
+	size_t i=0, k=0,index=0,length_=0;	
 	this->inherit(new_population, &indices, k,optimal_index_,minval_,maxval_,start);
+	length_ = indices.size();
+	individ_ptr generator_ = std::make_shared<Individ>(length_, 0.f, *this->random_device);
+	//individ_ptr pointer = std::make_shared<Individ>(this->length, this->bound, *this->random_device);
 
 	while((k<this->npopul)&&(i<this->maxiter))
 	{
-		fparent_index = this->cast(&indices);
+		fparent_index = this->cast(indices,generator_);
 		mparent_index = fparent_index;
 		if (indices.size()>1)
 		{
 		while(mparent_index == fparent_index)
 		{
-			mparent_index = this->cast(&indices);
+			mparent_index = this->cast(indices,generator_);
 		}
 		}
 
@@ -376,12 +368,13 @@ void Population::get_new_population(dictionary_* new_population, size_t& optimal
 			
 			mparent = this->population_[mparent_index];
 			fparent = this->population_[fparent_index];
-			Individ* child = this->cross(mparent, fparent);
+			individ_ptr child = this->cross(mparent, fparent);
 			if (child!=nullptr)
 			{
 				index = start + k;
 				this->add_individ(index, child, new_population);
-				val = child->get_val();
+				current = child.get();
+				val = current->get_val();
 				if (val<minval_)
 				{
 					minval_ = val;
@@ -406,8 +399,7 @@ const float Population::frandom()
 
 void Population::update_population(dictionary_* new_population, size_t optimal_index, float minval, float maxval) 
 {
-	if (new_population == nullptr) { return; }
-	this->erase_pointers(&this->population_);
+	if (new_population == nullptr) { return; }	
 	this->population_ = *new_population;
 	this->minval = minval;
 	this->maxval = maxval;
@@ -415,26 +407,17 @@ void Population::update_population(dictionary_* new_population, size_t optimal_i
 	//this->optimal_individ = this->population_[this->individ_index];
 
 };
-void Population::erase_pointers(dictionary_* population)
-{
-	if (population == nullptr) { return; }
-	dictionary_::iterator iter = population->begin();	
-	while(iter!=population->end())
-	{
-		if (iter->second->isinherited()||iter->second->isprotected()) { ++iter; continue; }
-		iter->second->delete_(true);
-		++iter;
-	}
-};
+
 void Population::print_population(dictionary_* population)
 {
 	if (population == nullptr) { return; }
 	dictionary_::iterator iter = population->begin();
 	size_t i = 0;
+	Individ* current = nullptr;
 	while (iter != population->end())
 	{
-		
-		iter->second->pint_to_log(this->log,i);
+		current = iter->second.get();
+		current->pint_to_log(this->log,i);
 		++iter;
 		++i;
 	}
@@ -444,10 +427,10 @@ void Population::optimize(const size_t allow_count)
 	this->niter = 0;
 	size_t count = 0;
 	float local_val=this->inf;
-	Individ* local_individ = nullptr;
-	Individ* solution = nullptr;
+	individ_ptr local_individ = nullptr;
+	individ_ptr solution = nullptr;
 	float main_val = this->minval;
-	std::string path = "C:\\Users\\avduryagin\\source\\repos\\genetic_optimizer\\log_file_";
+	std::string path = "//app//log_file_";;
 	std::string path_ = "";
 	std::string extension = ".txt";
 	std::ofstream out;
@@ -470,17 +453,17 @@ void Population::optimize(const size_t allow_count)
 					size_t optimal_index;
 					float maxval_ = -this->inf;
 					float minval_ = this->inf;
+					
 					this->get_new_population(&population, optimal_index, minval_, maxval_);					
 					this->update_population(&population, optimal_index, minval_, maxval_);
 					this->log.append(std::to_string(this->minval) + ",");
-
+					
 
 					if ((minval_ < local_val) && (std::abs(minval_ - local_val) > this->epsilon))
 					{
 						local_val = minval_;
-						if (local_individ != nullptr) { local_individ->set_protection(false); }
-						local_individ = this->population_[this->individ_index]->copy(*this->random_device);
-						local_individ->set_protection(true);
+						local_individ = this->population_[this->individ_index];
+						
 					}
 					++count;
 					++this->niter;
@@ -552,9 +535,8 @@ PopulationParallel::PopulationParallel(size_t npopul_, float bound_, float* x_, 
 	:Population{npopul_,bound_,  x_, y_, length_, threshold_, inh_threshold_,epsilon_ ,tolerance_ , mutate_cell_ ,  cast_number_ ,  random_mutate_ }
 {
 	std::thread th;	
-	this->njobs = std::min(unsigned int(njobs_), th.hardware_concurrency()-1);
-	std::mutex mut;
-	this->mutex_ = &mut;
+	this->njobs = std::min((unsigned int)njobs_, th.hardware_concurrency()-1);
+
 	
 };
 
@@ -591,8 +573,7 @@ void PopulationParallel::get_new_population(dictionary_* new_population, size_t&
 	
 	while (i<this->njobs)
 	{
-		//dictionary_ popul;
-		//Populations[i] = popul;
+
 		threads[i]=std::thread(&PopulationParallel::run, this,std::ref(Populations[i]),std::ref(indices),ninh,i*this->npopul);
 		++i;
 		
@@ -624,7 +605,8 @@ void PopulationParallel::run(dictionary_ &population,vector_& indices, const siz
 	size_t optimal_index;
 	float maxval_ = -this->inf;
 	float minval_ = this->inf;
-	this->breed(&population, indices, start, ninherited);
+	individ_ptr generator = std::make_shared<Individ>(indices.size(),0.f, *this->random_device);
+	this->breed(&population, indices, generator,start, ninherited);
 	//Population::get_new_population(&population, optimal_index, minval_, maxval_,start);
 
 
@@ -634,17 +616,10 @@ bool PopulationParallel::compare(pair A, pair B)
 	if (A.second.second < B.second.second) { return true; }
 	else return false;
 }
-void PopulationParallel::get_weight(std::unordered_map<size_t, dictionary_>& populations_,dictionary_& new_population, size_t& optimal_index, float& minval, float& maxval)
-{
-	//std::map<float, std::pair<size_t,size_t>> ordered_map;
+void PopulationParallel::get_weight(std::unordered_map<size_t, dictionary_>& populations_,dictionary_& new_population, size_t& optimal_index, float& minval, float& maxval){
 
-	/*std::string path = "C:\\Users\\avduryagin\\source\\repos\\genetic_optimizer\\file_";
-	std::string path_ = "";
-	std::string extension = ".txt";
-	std::ofstream out;
-	path_ = path + std::to_string(niter) + extension;
-	out.open(path_);*/
 	vector_p vector_;
+	Individ* current = nullptr;
 
 	std::unordered_map<size_t, dictionary_>::iterator iter = populations_.begin();
 	dictionary_::iterator loc_iter;
@@ -654,8 +629,9 @@ void PopulationParallel::get_weight(std::unordered_map<size_t, dictionary_>& pop
 		loc_iter = iter->second.begin();
 		while(loc_iter!=iter->second.end())
 		{
-			vector_.push_back(pair(iter->first, pair_(loc_iter->first, loc_iter->second->get_val())));	
-			loc_iter->second->decrease_npointer();
+			current = loc_iter->second.get();
+			vector_.push_back(pair(iter->first, pair_(loc_iter->first, current->get_val())));	
+			
 			++loc_iter;
 		}
 		++iter;
@@ -669,27 +645,21 @@ void PopulationParallel::get_weight(std::unordered_map<size_t, dictionary_>& pop
 	Individ individ_;
 	while(miter!= vector_.end())
 	{
-		if (i < this->npopul) 
-		{
-			//new_population[i] = populations_[miter->first][miter->second.first];
-			//new_population[i]->increase_npointer();
+		if (i < this->npopul) 		{
+
 			this->add_individ(i, populations_[miter->first][miter->second.first], &new_population);
 			val = miter->second.second;
 			if (maxval < val) { maxval = val; }
 		}
-		else
-		{
 
-			populations_[miter->first][miter->second.first]->delete_();
-
-		}
 		++miter;
 		++i;
 		
 	
 	}
 	optimal_index = 0;
-	minval = new_population[optimal_index]->get_val();
+	current = new_population[optimal_index].get();
+	minval = current->get_val();
 
 
 
@@ -707,20 +677,20 @@ void PopulationParallel::inheritance(dictionary_* new_population, vector_& indic
 	size_t i = 0, k = 0, optimal_index_ = 0;
 	Population::inherit(new_population, &indices, k, optimal_index_, minval_, maxval_, 0);
 }
-void PopulationParallel::breed(dictionary_* new_population,vector_& indices,size_t start,size_t k)
+void PopulationParallel::breed(dictionary_* new_population,vector_& indices, individ_ptr generator,size_t start,size_t k)
 {
-	Individ* fparent = nullptr; Individ* mparent = nullptr;
+	individ_ptr fparent = nullptr; individ_ptr mparent = nullptr;
 	size_t mparent_index = 0, fparent_index = 0,i=0,index = 0;
 	float val = 0;
 	while ((k < this->npopul) && (i < this->maxiter))
 	{
-		fparent_index = this->cast(&indices);
+		fparent_index = this->cast(indices,generator);
 		mparent_index = fparent_index;
 		if (indices.size() > 1)
 		{
 			while (mparent_index == fparent_index)
 			{
-				mparent_index = this->cast(&indices);
+				mparent_index = this->cast(indices,generator);
 			}
 		}
 		++i;
@@ -728,14 +698,15 @@ void PopulationParallel::breed(dictionary_* new_population,vector_& indices,size
 
 			mparent = this->population_[mparent_index];
 			fparent = this->population_[fparent_index];
-			Individ* child = this->cross(mparent, fparent);
+			individ_ptr child = this->cross(mparent, fparent);
 			if (child != nullptr)
 			{
 				index = start + k;
 				//this->mutex_->lock();
 				this->add_individ(index, child, new_population);
+				Individ* current = child.get();
 				//this->mutex_->unlock();
-				val = child->get_val();
+				val = current->get_val();
 				++k;
 			}
 		}
@@ -743,3 +714,4 @@ void PopulationParallel::breed(dictionary_* new_population,vector_& indices,size
 
 	}
 };
+

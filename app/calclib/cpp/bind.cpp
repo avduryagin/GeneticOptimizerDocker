@@ -41,7 +41,7 @@ void optimizer::optimize(f_array* data_ptr_, int_array& indices, unsigned int np
 	std::string log;
 	std::string path;
 	std::ofstream out;
-	path = "C:\\Users\\avduryagin\\source\\repos\\genetic_optimizer\\log_file_.txt";	
+	path = "//app//log_file_.txt";	
 	out.open(path);
 	log.append("length: " + std::to_string(this->length)+"\n");
 	log.append("npopul: " + std::to_string(this->npopul) + "\n");
@@ -56,15 +56,15 @@ void optimizer::optimize(f_array* data_ptr_, int_array& indices, unsigned int np
 
 	Population optimizer_ = Population(this->npopul, this->bound, this->x, this->y, this->length, this->threshold, this->inh_threshold, this->epsilon, this->tolerance, this->mutate_cell, this->cast_number, this->mutate_random);
 	optimizer_.optimize(this->allow_count);
-	Individ individ = *optimizer_.optimal_individ;
-	this->val = individ.get_val();
-	this->rest = individ.get_rest();
-	const bool* code = nullptr;
-	code = individ.code();
+	individ_ptr pointer = optimizer_.optimal_individ;
+	Individ* individ = pointer.get();
+	this->val = individ->get_val();
+	this->rest = individ->get_rest();
+
 	size_t i = 0;
 	while (i < this->length)
 	{
-		indices.mutable_at(i) = int(code[i]);
+		indices.mutable_at(i) = int(individ->at(i));
 		++i;
 	}
 	this->optimizer_ptr = &optimizer_;
@@ -87,7 +87,7 @@ void multijobs_optimizer::optimize(f_array* data_ptr_, int_array& indices, unsig
 	std::string log;
 	std::string path;
 	std::ofstream out;
-	path = "C:\\Users\\avduryagin\\source\\repos\\genetic_optimizer\\log_file_.txt";
+	path = "//app//log_file_.txt";	
 	out.open(path);
 	log.append("length: " + std::to_string(this->length) + "\n");
 	log.append("npopul: " + std::to_string(this->npopul) + "\n");
@@ -111,26 +111,24 @@ void multijobs_optimizer::optimize(f_array* data_ptr_, int_array& indices, unsig
 		//out.close();
 		//path = "C:\\Users\\avduryagin\\source\\repos\\genetic_optimizer\\log_file_2.txt";
 		//out.open(path);
-		Individ* individ_ptr = nullptr;
-		individ_ptr = optimizer_.optimal_individ;
-		if (individ_ptr == nullptr) { throw std::exception("Empty answer"); log.append("thrown an exception "); out << log; out.close(); }
-		Individ individ = *optimizer_.optimal_individ;
+		;
+		individ_ptr  pointer = optimizer_.optimal_individ;
+		if (pointer == nullptr) { throw std::invalid_argument("Empty answer"); log.append("thrown an exception "); out << log; out.close(); }
+		Individ* individ = pointer.get();
 		//log.append("individ passed\n");
 		//out << log;
 		//out.close();
 
-		this->val = individ.get_val();
+		this->val = individ->get_val();
 		//log.append("val: " + std::to_string(this->val) + "\n");
-		this->rest = individ.get_rest();
+		this->rest = individ->get_rest();
 		//log.append("rest: " + std::to_string(this->rest) + "\n");
 		this->niter = optimizer_.niter_();
 		//log.append("niter: " + std::to_string(this->niter) + "\n");
-		const bool* code = nullptr;
-		code = individ.code();
 		size_t i = 0;
 		while (i < this->length)
 		{
-			indices.mutable_at(i) = int(code[i]);
+			indices.mutable_at(i) = int(individ->at(i));
 			//log.append(std::to_string(indices.at(i)) + ",");
 			++i;
 		}

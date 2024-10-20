@@ -1,6 +1,6 @@
 #pragma once
-#include "pybind11\pybind11.h"
-#include "pybind11\numpy.h"
+#include "pybind11/pybind11.h"
+#include "pybind11/numpy.h"
 #include "Python.h"
 #include "main.h"
 namespace py = pybind11;

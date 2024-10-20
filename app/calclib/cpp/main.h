@@ -6,6 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include<string>
+#include<memory>
+#include<exception>
 //#include "crtdbg.h"
 /*
 #ifdef  _CRTDBG_MAP_ALLOC
@@ -41,7 +43,9 @@ public:
 class RandomMutator :public Mutator
 {
 	size_t ncell = 0;
-	using uniform = std::uniform_int<size_t>;
+	//typedef std::uniform_int_distribution<size_t> uniform;
+	
+	using uniform = std::uniform_int_distribution<size_t>;
 	std::mt19937 random_generator_;
 	uniform randint_;
 
@@ -52,21 +56,21 @@ public:
 	const size_t randint() override;
 
 };
+using boolean_ = std::unique_ptr<bool[]>;
 
 
 class Individ
 {
+	
 	float val_ = 0;
 	float rest_ = 0;
 	float bound = 0;
-	bool inherited = false;
-	bool protected_ = false;
-	bool* code_ = nullptr;
+	boolean_ code_ = nullptr;
 	size_t size = 1;	
 	std::mt19937 random_generator_;
-	std::uniform_int<size_t> randint_;
+	std::uniform_int_distribution<size_t> randint_;
 	const bool isvalid(size_t,size_t) const;
-	size_t npointer = 0;
+	
 
 public:
 	Individ(size_t, float,std::random_device &);
@@ -75,29 +79,24 @@ public:
 	void fit(float*,size_t, float*,size_t);
 	const float value(float*, size_t, float*, size_t);
 	const float get_rest() const;
-	const float get_val() const;
-	const bool isinherited() const;
-	const bool isprotected() const;
-	void set_inheritance(const bool);
-	void set_protection(const bool);
-	void delete_(bool);
+	const float get_val() const;	
 	void pint_to_log(std::string& ,size_t index);
-
 	void mutate(size_t);
 	const size_t randint();
-	void shuffle(std::vector<size_t> &);
-	const bool* code() const;
-	void increase_npointer();
-	void decrease_npointer();
-	void erase_npointer();
+	void shuffle(std::vector<size_t> &);	
+	bool at(size_t i) const;
 	void inherit(const Individ*, const Individ*);
 	Individ* copy(std::random_device&);
 };
+
+using individ_ptr = std::shared_ptr<Individ>;
+using individ_ptru = std::unique_ptr<Individ>;
+
 class Population
 {
-protected:	
-	using dictionary_ = std::unordered_map<size_t, Individ*>;
-	
+protected:
+	using dictionary_ = std::unordered_map<size_t, individ_ptr>;
+	using dictionary_iterator = std::unordered_map<size_t, individ_ptr>::iterator;
 	std::random_device* random_device=nullptr;
 	Mutator* mutator_ = nullptr;
 	
@@ -132,16 +131,14 @@ protected:
 	std::ofstream* out;
 	void fit();
 	void set_limits();
-	void add_individ(size_t,Individ*,dictionary_*);
-	void remove_individ(size_t,Individ*, dictionary_*);
-	Individ* cross(Individ*, Individ*);
+	void add_individ(size_t,individ_ptr,dictionary_*);	
+	individ_ptr cross(individ_ptr, individ_ptr);
 	void selection(vector_*);
-	const size_t cast(vector_* const) const;
+	const size_t cast(const vector_&, individ_ptr) const;
 	
 	void inherit(dictionary_*, vector_*,size_t&, size_t&, float&, float&,size_t);
 	const float frandom();
 	void set_mutator(size_t,bool);	
-	void erase_pointers(dictionary_*);	
 	void print_population(dictionary_*);
 	void update_population(dictionary_*, size_t, float, float);
 	virtual void get_new_population(dictionary_*, size_t&, float&, float&,size_t);
@@ -152,13 +149,14 @@ protected:
 	
 
 public:
-	Individ* optimal_individ=nullptr;
+	individ_ptr optimal_individ=nullptr;
 	Population(size_t, float, float*, float*, size_t, float, float,  float,float, size_t, size_t,bool);
 	~Population();
 	const size_t niter_() const;
 	virtual void optimize(const size_t);
 	
 };
+
 #include <thread>
 #include <mutex>
 #include <math.h>
@@ -178,9 +176,7 @@ class PopulationParallel:public Population
 	void get_weight(std::unordered_map<size_t, dictionary_>&,dictionary_&,size_t&,float&,float&);
 	static bool compare(pair, pair);
 	void inheritance(dictionary_*,vector_&);
-	void breed(dictionary_*, vector_& ,const size_t , size_t );
-	std::mutex* mutex_ = nullptr;
-
+	void breed(dictionary_*, vector_& , individ_ptr ,const size_t , size_t );	
 	void sleep(int duration) {
 		// simulate expensive operation
 		std::this_thread::sleep_for(std::chrono::seconds(duration));
