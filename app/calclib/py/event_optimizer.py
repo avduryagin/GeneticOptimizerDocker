@@ -357,23 +357,29 @@ class EvenOptimizer(OddOptimizer):
             n = index.shape[0]
             if n == 0:
                 continue
-            xmin=self.data.data.loc[index, "cost"].min()
+            xmin=self.data.data.loc[index, "cost"].values.min()
 
             if xmin>bound:
                 if (mode!="type"):leave_cell=True
                 continue
-
-            x = self.data.data.loc[index, "cost"].values * -1
-            y = np.zeros(n, dtype=np.float32)
-            w = np.vstack([x, y], dtype=np.float32).T
-            optimizer = op.Optimizer(data_=w, npopul_=npopul, bound_=bound, threshold_=threshold, epsilon_=epsilon,
-                                     tolerance_=tolerance, mutate_cell_=mutate_cell, mutate_random_=mutate_random,
-                                     cast_number_=cast_number,
-                                     allow_count_=allow_count, engine="cpp", njobs_=njobs)
-            optimizer.optimize()
-            solution = optimizer.solution
-            indices = index[solution.code]
-            self.data.set_mean(cell, main_type, solution.val)
+            xsum=self.data.data.loc[index, "cost"].values.sum()
+            _val=0
+            if xsum<=bound:
+                indices=index
+                _val=xsum
+            else:
+                x = self.data.data.loc[index, "cost"].values * -1
+                y = np.zeros(n, dtype=np.float32)
+                w = np.vstack([x, y], dtype=np.float32).T
+                optimizer = op.Optimizer(data_=w, npopul_=npopul, bound_=bound, threshold_=threshold, epsilon_=epsilon,
+                                         tolerance_=tolerance, mutate_cell_=mutate_cell, mutate_random_=mutate_random,
+                                         cast_number_=cast_number,
+                                         allow_count_=allow_count, engine="cpp", njobs_=njobs)
+                optimizer.optimize()
+                solution = optimizer.solution
+                indices = index[solution.code]
+                _val=solution.val
+            self.data.set_mean(cell, main_type, _val)
             self.data.assign_index(cell, indices)
             if (mode!="type")&(index.shape[0]!=indices.shape[0]):
                 leave_cell=True
