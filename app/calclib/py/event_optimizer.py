@@ -116,16 +116,23 @@ class DataWrapperExp(DataWrapper):
         super().__init__(json_data,data_field=data_field,target_field=target_field)
         self.types_index=None
         self.other_types=None
+        self.types_mask=None
+        self.group_distance=None
 
     def fit(self):
         super().fit()
         self.types_index=self.types_[1:]
         mask=self.data.loc[:,'type'].isin(self.types_index)
         self.other_types=self.data.loc[~mask,'type'].value_counts().keys()
+        self.types_mask=self.means.loc[self.types_index]>0
+        self.group_distance=self.data.loc[:,["group","cell"]].groupby("group").max()
 
     def types_rating(self,cell=0):
+        index=self.types_index[~self.types_mask.loc[:,cell]]
         columns=self.cells[(cell+1):]
-        return self.means.loc[self.types_index,columns].sum(axis=1).sort_values(ascending=False)
+        if len(columns)>0:
+            return self.means.loc[index,columns].sum(axis=1).sort_values(ascending=False)
+        return np.array([],dtype=np.int32)
 
     def get_index(self,cell_,group_,type_,alpha=1):
         if not isinstance(type_,Iterable):
@@ -443,7 +450,7 @@ class EvenOptimizer(OddOptimizer):
                 _val=solution.val
             self.data.set_mean(cell, main_type, _val)
             self.data.assign_index(cell, indices)
-            if (mode!="type")&(index.shape[0]!=indices.shape[0]):
+            if (mode=="all")&(index.shape[0]!=indices.shape[0]):
                 leave_cell=True
                 #return leave_cell
         return leave_cell
@@ -452,6 +459,7 @@ class EvenOptimizer(OddOptimizer):
                       threshold=0.7, tolerance=0.7, allow_count=5, mutate_cell=1,
                       mutate_random=True, cast_number=3, njobs=1)->int:
 
+        group_distance=self.data.group_distance.at[group,"cell"]
         leave_cell = False
         cell=cell_
         while cell< self.data.cells.shape[0]:
@@ -462,7 +470,11 @@ class EvenOptimizer(OddOptimizer):
                 if leave_cell:
                     cell+=1
                     break
-            if not leave_cell: return cell
+            if not leave_cell:
+                if cell<group_distance:
+                    cell+=1
+                else:
+                    return cell
 
         return cell
 
