@@ -130,9 +130,7 @@ class DataWrapperExp(DataWrapper):
     def types_rating(self,cell=0):
         index=self.types_index[~self.types_mask.loc[:,cell]]
         columns=self.cells[(cell+1):]
-        if len(columns)>0:
-            return self.means.loc[index,columns].sum(axis=1).sort_values(ascending=False).index
-        return np.array([],dtype=np.int32)
+        return self.means.loc[index,columns].sum(axis=1).sort_values(ascending=False).index
 
     def get_index(self,cell_,group_,type_,alpha=1):
         if not isinstance(type_,Iterable):
