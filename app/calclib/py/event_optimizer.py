@@ -131,7 +131,7 @@ class DataWrapperExp(DataWrapper):
         index=self.types_index[~self.types_mask.loc[:,cell]]
         columns=self.cells[(cell+1):]
         if len(columns)>0:
-            return self.means.loc[index,columns].sum(axis=1).sort_values(ascending=False)
+            return self.means.loc[index,columns].sum(axis=1).sort_values(ascending=False).index
         return np.array([],dtype=np.int32)
 
     def get_index(self,cell_,group_,type_,alpha=1):
@@ -407,7 +407,7 @@ class EvenOptimizer(OddOptimizer):
 
 
         elif mode=="force":
-            types=(self.data.types_rating(cell).index,)
+            types=(self.data.types_rating(cell),)
             main_types=(-1,)
             alpha=self.alpha
 
