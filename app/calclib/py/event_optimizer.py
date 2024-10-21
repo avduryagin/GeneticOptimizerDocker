@@ -129,8 +129,9 @@ class DataWrapperExp(DataWrapper):
 
     def types_rating(self,cell=0):
         index=self.types_index[~self.types_mask.loc[:,cell]]
-        columns=self.cells[(cell+1):]
-        return self.means.loc[index,columns].sum(axis=1).sort_values(ascending=False).index
+        return index
+        #columns=self.cells[(cell+1):]
+        #return self.means.loc[index,columns].sum(axis=1).sort_values(ascending=False).index
 
     def get_index(self,cell_,group_,type_,alpha=1):
         if not isinstance(type_,Iterable):
@@ -335,65 +336,6 @@ class EvenOptimizer(OddOptimizer):
                 break
             cell=cell_
 
-    def _fill_by_types(self,cell,group,mode="type",npopul=100, epsilon=1e-3,
-                      threshold=0.7, tolerance=0.7, allow_count=5, mutate_cell=1,
-                      mutate_random=True, cast_number=3, njobs=1):
-        alpha = 1
-        if mode=="type":
-            types=self.data.types_index
-            main_types=types
-
-
-
-        elif mode=="force":
-            types=self.data.types_rating(cell).index
-            main_types=np.empty(types.shape[0],dtype=np.int32)
-            main_types.fill(-1)
-            alpha=self.alpha
-
-        else:
-            types=self.data.other_types
-            main_types=np.empty(types.shape[0],dtype=np.int32)
-            main_types.fill(-1)
-
-        leave_cell = False
-        for type_,main_type in zip(types,main_types):
-            bound = float(self.data.get_mean(cell, main_type))
-            if not (bound > 0):
-                continue
-            index = self.data.get_index(cell, group, type_,alpha)
-
-            n = index.shape[0]
-            if n == 0:
-                continue
-            xmin=self.data.data.loc[index, "cost"].values.min()
-
-            if xmin>bound:
-                if (mode!="type"):leave_cell=True
-                continue
-            xsum=self.data.data.loc[index, "cost"].values.sum()
-            _val=0
-            if xsum<=bound:
-                indices=index
-                _val=-xsum
-            else:
-                x = self.data.data.loc[index, "cost"].values * -1
-                y = np.zeros(n, dtype=np.float32)
-                w = np.vstack([x, y], dtype=np.float32).T
-                optimizer = op.Optimizer(data_=w, npopul_=npopul, bound_=bound, threshold_=threshold, epsilon_=epsilon,
-                                         tolerance_=tolerance, mutate_cell_=mutate_cell, mutate_random_=mutate_random,
-                                         cast_number_=cast_number,
-                                         allow_count_=allow_count, engine="cpp", njobs_=njobs)
-                optimizer.optimize()
-                solution = optimizer.solution
-                indices = index[solution.code]
-                _val=solution.val
-            self.data.set_mean(cell, main_type, _val)
-            self.data.assign_index(cell, indices)
-            if (mode!="type")&(index.shape[0]!=indices.shape[0]):
-                leave_cell=True
-                #return leave_cell
-        return leave_cell
     def fill_by_types(self,cell,group,mode="type",npopul=100, epsilon=1e-3,
                       threshold=0.7, tolerance=0.7, allow_count=5, mutate_cell=1,
                       mutate_random=True, cast_number=3, njobs=1):
