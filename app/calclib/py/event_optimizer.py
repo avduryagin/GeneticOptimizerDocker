@@ -124,7 +124,7 @@ class DataWrapperExp(DataWrapper):
         self.other_types=self.data.loc[~mask,'type'].value_counts().keys()
 
     def types_rating(self,cell=0):
-        columns=self.cells[cell:]
+        columns=self.cells[(cell+1):]
         return self.means.loc[self.types_index,columns].sum(axis=1).sort_values(ascending=False)
 
     def get_index(self,cell_,group_,type_,alpha=1):
