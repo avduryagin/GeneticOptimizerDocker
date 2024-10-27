@@ -17,16 +17,19 @@ class DataWrapper:
         self.grouped=None
         self.cells=None
         self.groups=None
-        self.types=None
+        self.types_=None
         self.index=None
+        self.dtypes={'group': np.int32, 'cell': np.int32,
+                     'assigned': np.int32, 'order': np.float32,
+                      'cost': np.float32, 'type': np.int32}
 
     def fit(self):
         try:
-            self.data=pd.DataFrame.from_dict(self.json_data[self.data_field])
+            self.data=pd.DataFrame.from_dict(self.json_data[self.data_field]).astype(self.dtypes)
             self.data.index=self.data.index.astype(np.int32)
             self.index=self.data.index
             self.data.loc[:, 'mask'] = False
-            self.means=pd.DataFrame.from_dict(self.json_data[self.target_field])
+            self.means=pd.DataFrame.from_dict(self.json_data[self.target_field],dtype=np.float32)
             self.means.index=self.means.index.astype(self.data["type"].dtype)
             self.means.columns = self.means.columns.astype(self.data["assigned"].dtype)
             self.means.fillna(0., inplace=True)
@@ -419,5 +422,66 @@ class EvenOptimizer(OddOptimizer):
         return cell
 
 
+
+class UniformOptimizer:
+    def __init__(self,json_data,ncell=5,maxiter=100, npopul=100,epsilon = 1e-3,
+                 threshold = 0.7,tolerance = 0.7,allow_count = 5,
+                 mutate_cell = 1,mutate_random=True,cast_number = 1,njobs=1):
+        self.json_data=json_data
+        self.ncell=ncell
+        self.npopul=npopul
+        self.maxiter=maxiter
+        self.epsilon=epsilon
+        self.threshold=threshold
+        self.tolerance=tolerance
+        self.allow_count=allow_count
+        self.mutate_cell=mutate_cell
+        self.mutate_random=mutate_random
+        self.cast_number=cast_number
+        self.njobs=njobs
+        self.niter=0
+        self.log=[]
+        self.fit()
+
+
+    def fit(self):
+        target={k:{-1:0.} for k in np.arange(self.ncell,dtype=np.float32)}
+        self.json_data["target"]=target
+        self.data = DataWrapperExp(self.json_data)
+        self.data.fit()
+        mask=self.data.data.loc[:,"cell"]<self.ncell
+        self.data.data=self.data.data.loc[mask]
+
+    def __mean(self,i=0, x=np.array([])):
+        if i == x.shape[0] - 1:
+            return x[i]
+        delta = self.__mean(i + 1, x)
+        j = x.shape[0] - i
+        return x[i] + (j - 1) * delta / j
+
+    def optimize(self):
+        amask = self.data.data.loc[:, "assigned"] < 0
+        dtype_=self.data.data["cost"].dtype
+        cell_frame = pd.DataFrame(data=np.zeros(shape=(self.ncell, 1),dtype=dtype_), index=np.arange(self.ncell), columns=["cost"])
+        self.niter=0
+        while self.niter<self.maxiter:
+            mask = self.data.data.loc[:, "assigned"] < 0
+            missed_number = mask[mask].shape[0]
+            self.log.append([self.niter,missed_number])
+            if missed_number == 0:
+                break
+            agg_cell = self.data.data.loc[mask, ["cell", "cost"]].groupby("cell").sum()
+            agg_cell.loc[:, "cost_"] = agg_cell.loc[:, "cost"] / (self.ncell - agg_cell.index).astype(dtype_)
+            cell_frame.values.fill(0)
+            cell_frame.loc[agg_cell.index, "cost"] = agg_cell.loc[:, "cost_"]
+            val = self.__mean(0, x=cell_frame.loc[:, "cost"].values)
+            self.data.means.loc[-1] += val
+            self.data.data.loc[amask, "assigned"] = -1
+            json_data = {"data": self.data.data.to_dict(), "target": self.data.means.to_dict()}
+            optimizer = GeneralizedOptimizer(json_data,npopul=self.npopul,epsilon=self.epsilon,threshold=self.threshold,tolerance=self.tolerance,
+                                             allow_count=self.allow_count,mutate_cell=self.mutate_cell,mutate_random=self.mutate_random,cast_number=self.cast_number,njobs=self.njobs)
+            self.data.data = optimizer.optimize(alpha=1)
+            self.niter+=1
+        return self.data.data
 
 
