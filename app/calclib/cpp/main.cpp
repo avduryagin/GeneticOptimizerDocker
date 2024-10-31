@@ -46,14 +46,14 @@ Individ::~Individ(){}
 
 void Individ::inherit(const Individ* mparent, const Individ* fparent)
 {
-	size_t index = this->randint();
+	this->inheritance_slice = this->randint();
 	size_t i = 0;
-	while(i<index)
+	while(i< this->inheritance_slice)
 	{
 		this->code_[i] = mparent->code_[i];
 		++i;
 	}
-	i = index;
+	i = this->inheritance_slice;
 	while (i < this->size)
 	{
 		this->code_[i] = fparent->code_[i];

@@ -61,15 +61,18 @@ using boolean_ = std::unique_ptr<bool[]>;
 
 class Individ
 {
-	
-	float val_ = 0;
 	float rest_ = 0;
 	float bound = 0;
+	
+
+protected:
 	boolean_ code_ = nullptr;
+	float val_ = 0;
 	size_t size = 1;	
 	std::mt19937 random_generator_;
 	std::uniform_int_distribution<size_t> randint_;
 	const bool isvalid(size_t,size_t) const;
+	size_t inheritance_slice = 0;
 	
 
 public:
@@ -79,15 +82,16 @@ public:
 	void fit(float*,size_t, float*,size_t);
 	const float value(float*, size_t, float*, size_t);
 	const float get_rest() const;
-	const float get_val() const;	
+	const float get_val() const;
 	void pint_to_log(std::string& ,size_t index);
-	void mutate(size_t);
-	const size_t randint();
-	void shuffle(std::vector<size_t> &);	
-	bool at(size_t i) const;
+	virtual  void mutate(size_t);
+	virtual  const size_t randint();
+	virtual void shuffle(std::vector<size_t> &);
+	virtual bool at(size_t i) const;
 	void inherit(const Individ*, const Individ*);
 	Individ* copy(std::random_device&);
 };
+
 
 using individ_ptr = std::shared_ptr<Individ>;
 using individ_ptru = std::unique_ptr<Individ>;
